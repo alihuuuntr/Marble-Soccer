@@ -4,7 +4,7 @@ import pygame.surfarray as surfarray
 import numpy as np
 import math
 from player import Player
-from constants import WIDTH, HEIGHT, GOAL_COLOR, TEXT_COLOR,WHITE, goals, initial_player_positions
+from constants import WIDTH, HEIGHT, GOAL_COLOR, TEXT_COLOR,WHITE, goals, initial_player_positions, ball_radius
 
 
 def handle_input(players, team, event):
@@ -58,21 +58,6 @@ def interpolate_color(start, end, min_color, max_color):
 
     return (color_r, color_g, color_b)
 
-                
-# def handle_input(player, event, ball):
-#     if event.type == pygame.MOUSEBUTTONDOWN:
-#         if player.collides_with_point(event.pos):
-#             player.selected = True
-
-#     if event.type == pygame.MOUSEBUTTONUP:
-#         if player.selected:
-#             player.selected = False
-#             dx = event.pos[0] - player.x
-#             dy = event.pos[1] - player.y
-#             player.shoot_ball(ball, dx, dy)
-
-#     if event.type == pygame.MOUSEMOTION and player.selected:
-#         player.update_aim(event.pos)
 
 def player_ball_collision(player, ball):
     dx = player.x - ball.x
@@ -122,7 +107,7 @@ def handle_collision(players, ball):
 
     ball.bounce_off_wall()  # Handle wall collisions for the ball
 
-def check_goal(ball, goal_width=50, goal_height=150):
+def check_goal(ball, goal_width=(ball_radius + 2), goal_height=150):
     if (ball.y >= (HEIGHT - goal_height) // 2) and (ball.y <= (HEIGHT + goal_height) // 2):
         if ball.x <= goal_width:  # Team 2 scores
             return True, 1
@@ -133,7 +118,7 @@ def check_goal(ball, goal_width=50, goal_height=150):
 
 def draw_board(screen, goals):
     # Draw the game board, including goals and any markings
-    goal_width = 100
+    goal_width = 150
     pygame.draw.rect(screen, GOAL_COLOR, (0, (HEIGHT - goal_width) // 2, 5, goal_width))
     pygame.draw.rect(screen, GOAL_COLOR, (WIDTH - 5, (HEIGHT - goal_width) // 2, 5, goal_width))
 
@@ -165,51 +150,16 @@ def display_game_over_message(screen, winning_team):
     text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
     screen.blit(text, text_rect)
 
-def fisheye(surface):
-    width, height = surface.get_size()
-    fisheye_surface = pygame.Surface((width, height), pygame.SRCALPHA, 32)
-    fisheye_surface = fisheye_surface.convert_alpha()
-
-    arr = surfarray.array3d(surface)
-
-    # Create empty output array
-    out_arr = np.zeros((width, height, 3), dtype=np.uint8)
-
-    r = min(height, width) // 2
-
-    for x in range(width):
-        for y in range(height):
-            dx = x - r
-            dy = y - r
-            
-            
-            angle = math.atan2(dy, dx)
-
-            # Move the point twice as close to the intersection of the circle
-            ex = int(r + r * math.cos(angle))
-            ey = int(r + r * math.sin(angle))
-            fisheye_x = int(x * 0.75 + ex * 0.25)
-            fisheye_y = int(y * 0.75 + ey * 0.25)
-
-            if 0 <= fisheye_x < width and 0 <= fisheye_y < height:
-                out_arr[x, y] = arr[fisheye_x, fisheye_y]
-
-    surfarray.blit_array(fisheye_surface, out_arr)
-    return fisheye_surface
-
 def create_circular_texture(texture, ball):
-    # Apply fisheye transformation to the texture
-    fisheye_texture = fisheye(texture)
-
     circular_texture = pygame.Surface((ball.radius * 2, ball.radius * 2), pygame.SRCALPHA, 32)
     circular_texture = circular_texture.convert_alpha()
 
-    width = (int)(fisheye_texture.get_width() / 6.33333)
-    height = (int)(fisheye_texture.get_height()  / 4)
+    width = (int)(texture.get_width() / 6.33333) # To make it periodic
+    height = (int)(texture.get_height()  / 4) # To make it periodic
     texture_x = 3 *width - (ball.x % width)
     texture_y = 2 * height - (ball.y % height)
 
-    circular_texture.blit(fisheye_texture, (0, 0), (texture_x, texture_y, ball.radius * 2, ball.radius * 2))
+    circular_texture.blit(texture, (0, 0), (texture_x, texture_y, ball.radius * 2, ball.radius * 2))
 
     mask_surface = pygame.Surface((ball.radius * 2, ball.radius * 2), pygame.SRCALPHA, 32)
     pygame.draw.circle(mask_surface, (255, 255, 255), (ball.radius, ball.radius), ball.radius)
@@ -217,21 +167,3 @@ def create_circular_texture(texture, ball):
     circular_texture.blit(mask_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
     return circular_texture
-
-# def create_circular_texture(texture, ball):
-#     circular_texture = pygame.Surface((ball.radius * 2, ball.radius * 2), pygame.SRCALPHA, 32)
-#     circular_texture = circular_texture.convert_alpha()
-
-#     width = (int)(texture.get_width() / 6.33333)
-#     height = (int)(texture.get_height()  / 4)
-#     texture_x = 3 *width - (ball.x % width)
-#     texture_y = 2 * height - (ball.y % height)
-
-#     circular_texture.blit(texture, (0, 0), (texture_x, texture_y, ball.radius * 2, ball.radius * 2))
-
-#     mask_surface = pygame.Surface((ball.radius * 2, ball.radius * 2), pygame.SRCALPHA, 32)
-#     pygame.draw.circle(mask_surface, (255, 255, 255), (ball.radius, ball.radius), ball.radius)
-
-#     circular_texture.blit(mask_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-
-#     return circular_texture
